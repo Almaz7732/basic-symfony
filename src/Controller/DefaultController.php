@@ -1,0 +1,138 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Entity\Category;
+use App\Entity\Post;
+use App\Form\FeedbackForm;
+use App\Repository\PostRepository;
+use App\Service\ExportInterface;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+class DefaultController extends AbstractController
+{
+    #[Route('/', name: 'homepage')]
+    public function homepage(TranslatorInterface $translator, Request $request, EntityManagerInterface $em): Response
+    {
+        $posts = $em->getRepository(Post::class)->findAll();
+
+//        $session = $request->getSession();
+//        $session->set('test', 'Hello World!');
+
+        return $this->render('default/homepage.html.twig', [
+            'posts' => $posts,
+        ]);
+    }
+
+    #[Route('/about', name: 'about')]
+    public function about(Session $session): Response
+    {
+        return $this->render('default/about.html.twig');
+    }
+
+    #[Route('/contact', name: 'contact')]
+    public function contact(Request $request, EntityManagerInterface $em, MailerInterface $mailer): Response
+    {
+        $form = $this->createForm(FeedbackForm::class);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $feedback = $form->getData();
+            $em->persist($feedback);
+            $em->flush();
+
+            $message = new Email();
+            $message->from('almazbanker@gmail.com');
+            $message->to('almazbanker@gmail.com');
+            $message->text('New feedback!');
+            $message->html($this->renderView('email/feedback.html.twig', [
+                'name' => $feedback->getName(),
+                'message' => $feedback->getMessage(),
+                'contact' => $feedback->getEmail(),
+            ]));
+            $message->subject("Feedback form: [ {$feedback->getSubject()} ]");
+
+            $mailer->send($message);
+
+            $this->addFlash('success', 'Thanks for your feedback!');
+            return $this->redirectToRoute('contact');
+        }
+
+        return $this->render('default/contact.html.twig', [
+            'form' => $form->createView(),
+        ]);
+    }
+
+    public function categoriesWidget(EntityManagerInterface $em): Response
+    {
+        $list = $em->getRepository(Category::class)->getPopularList();
+
+        return $this->render('default/widget/categories.html.twig', [
+            'list' => $list,
+        ]);
+    }
+
+    public function popularPostsWidget()
+    {
+        return $this->render('default/widget/popularPosts.html.twig');
+    }
+
+    #[Route('/export', name: 'export')]
+    public function exportAction(ExportInterface $exporter, PostRepository $postRepository): Response
+    {
+        $list = $postRepository->getAllItems();
+        $file = $exporter->run($list);
+
+        $response = new BinaryFileResponse($file);
+        $response->headers->set('Content-Type', $exporter->getFileType());
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $exporter->getFriendlyFileName()
+        );
+        return $response;
+    }
+
+    #[Route('/login', name: 'login')]
+    public function login(): Response
+    {
+        return $this->render('default/login.html.twig');
+    }
+
+    #[Route('/test', name: 'test')]
+    public function test(EntityManagerInterface $em): Response
+    {
+
+//        delete
+//        $user = $em->getRepository(User::class)->find(1);
+//        $em->remove($user);
+//        $em->flush();
+
+//        update
+//        $user = $em->getRepository(User::class)->find(1);
+//        $user->setBirthday(new \DateTime('2001-01-01'));
+//        $em->flush();
+
+
+//        create
+//        $user = new User();
+//        $user->setFirstName('Almaz');
+//        $user->setLastName('Abd');
+
+//        $em->persist($user);
+//        $em->flush();
+
+        die('OK!');
+    }
+}

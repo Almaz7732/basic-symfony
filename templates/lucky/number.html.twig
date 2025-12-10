@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    Hello world! Number - {{ number|almazik }}
+    {{ almaz() }}
+
+    {% if number > 50 %}
+        Number more thant 50
+    {% else %}
+        Number less than 50
+    {% endif %}
+
+    <ul>
+        {% for item in list %}
+            <li>{{ item }}</li>
+        {% endfor %}
+    </ul>
+
+    <div style="background-color: #af99d4">
+        {{ render(controller('App\\Controller\\LuckyController::test')) }}
+    </div>
+{% endblock %}
+
